@@ -27,7 +27,7 @@ struct resourceLog *root = NULL;
 struct queue
 {
 	int front,rear,currentSize;
-	struct process Arr[queueSize];
+	struct process *Arr;
 };
 
 //Ready Queue
@@ -35,30 +35,30 @@ struct queue readyQueue;
 
 int isEmpty()
 {
-	if(readyQueue->front==readyQueue->rear)
+	if(readyQueue.front==readyQueue.rear)
 		return 1;
 	return 0;
 }
 
 void push(struct process p)
 {
-	if(readyQueue->rear>=readyQueue->currentSize)
+	if(readyQueue.rear>=readyQueue.currentSize)
 	{
-		readyQueue=realloc(readyQueue,2*readyQueue->currentSize);
-		readyQueue->currentSize *=2;
+		readyQueue.Arr=realloc(readyQueue.Arr,2*readyQueue.currentSize);
+		readyQueue.currentSize *=2;
 	}
-	readyQueue->Arr[readyQueue->rear++]=p;
+	readyQueue.Arr[readyQueue.rear++]=p;
 }
 
 struct process pop()
 {
-	return readyQueue->Arr[readyQueue->front++];
+	return readyQueue.Arr[readyQueue.front++];
 }
 
 /* Ready Queue Ends*/
 
 /* Init Functions Start */
-void initMaxResources()
+void initResources()
 {
 	for(int i=0;i<numResources;i++)
 	{
@@ -69,14 +69,14 @@ void initMaxResources()
 
 void initReadyQueue()
 {
-	readyQueue=(struct queue *)malloc(1*sizeof(struct queue));
-	readyQueue->currentSize=1;
+	readyQueue.Arr=(int *)malloc(readyQueue.currentSize*sizeof(int));
+	readyQueue.currentSize=1;
 }
 
 void initAll()
 {
 	timeElapsed=0;
-	initMaxResources();
+	initResources();
 	initReadyQueue();
 }
 /* Init Functions End */

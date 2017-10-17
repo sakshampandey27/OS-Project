@@ -10,7 +10,8 @@ unsigned long long int timeElapsed;
 struct process
 {
 	int burstTime,arrivalTime;
-	int ResourcesAllocated[numResources];
+	int processID;
+	int resourcesAllocated[numResources];
 };
 
 struct requestLog
@@ -18,10 +19,10 @@ struct requestLog
 	int requestType;
 	int resourceNumber;
 	int resourceInstances;
-	struct list *rightlink, *downlink;
+	struct requestLog *rightlink, *downlink;
 };
 
-struct resourceLog *root = NULL;
+struct requestLog *root = NULL;
 
 /* Ready Queue Starts*/
 struct queue
@@ -69,7 +70,7 @@ void initResources()
 
 void initReadyQueue()
 {
-	readyQueue.Arr=(int *)malloc(readyQueue.currentSize*sizeof(int));
+	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
 	readyQueue.currentSize=1;
 }
 
@@ -88,27 +89,27 @@ unsigned long long int getArrivalTime()
 
 void currentStatus()
 {
-	for (int i=q->front;i<q->rear;i++)
+	for (int i=readyQueue.front;i<readyQueue.rear;i++)
 	{
-		printf("P%d\t",q->Arr[i]->processID);
+		printf("P%d\t",readyQueue.Arr[i].processID);
 	}
 }
 
-void log(int id, int type, int resNum, int resInstances)
+void logRequests(int id, int type, int resNum, int resInstances)
 {
-	struct resourceLog *curr=root;
-	struct resourceLog newRequest;
-	newRequest = (struct resourceLog *)malloc(sizeof(struct resourceLog));
+	struct requestLog *curr=root;
+	struct requestLog *newRequest;
+	newRequest = (struct requestLog *)malloc(sizeof(struct requestLog));
 	newRequest->requestType = type;
 	newRequest->resourceNumber = resNum;
 	newRequest->resourceInstances = resInstances;	
 	if (curr==NULL)
 	{
-		curr=(struct resourceLog *)malloc(sizeof(struct resourceLog));
+		curr=(struct requestLog *)malloc(sizeof(struct requestLog));
 		curr->rightlink=NULL;
 		curr->requestType = id;
 		curr->resourceNumber = curr->resourceInstances = -1;
-		curr->downlink = -1;		
+		curr->downlink = NULL;		
 	}
 	while (curr->downlink!=NULL)
 	{
@@ -126,7 +127,7 @@ void log(int id, int type, int resNum, int resInstances)
 void newProcess()
 {
 	printf("Enter new process details : ");
-	struct process p;
+	struct process *p;
 	p=(struct process *)malloc(sizeof(struct process));
 	p->arrivalTime=getArrivalTime();
 	printf("Enter burst Time : ");
@@ -135,20 +136,20 @@ void newProcess()
 	for(int i=0;i<numResources;i++)
 	{
 		printf("Enter request for resource %d",i);
-		scanf("%d",&p->ResourcesAllocated[i]);
+		scanf("%d",&p->resourcesAllocated[i]);
 	}
 	//Push process to end of queue
-	push(p);
+	push(*p);
 }
 
 int getProcessIndex()
 {
-	int ID;
+	int ID,i;
 	printf("Enter process ID : ");
 	scanf("%d",&ID);
-	for(i=readyQueue->front;i<readyQueue->rear;i++)
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
 	{
-		if(readyQueue->Arr[i].processID==ID)
+		if(readyQueue.Arr[i].processID==ID)
 			break;
 	}
 	return i;
@@ -163,17 +164,18 @@ void requestResources() //
 	scanf("%d",&resourceNumber);
 	printf("Enter number of instances to request");
 	scanf("%d",&numberOfInstances);
-	log(ID,requestNew,resourceNumber,numberOfInstances);
+	logRequests(ID,requestNew,resourceNumber,numberOfInstances);
 	//Request kept as a log
 }
 
 void releaseResources(struct process processNumber)
 {
+	int num, ch;
 	printf("Which resource do you want to release? \n");
 	scanf("%d",&ch);
-	printf("How many instances do you want to release? \n")
+	printf("How many instances do you want to release? \n");
 	scanf("%d",&num);
-	log(processNumber->processID, releaseOld, ch, num);
+	logRequests(processNumber.processID, releaseOld, ch, num);
 	/*
 	if (num > processNumber->resourcesAllocated[ch])
 		printf("Insufficent resources!\nCurrent allocation = %d",processNumber->resourcesAllocated[ch]);
@@ -200,11 +202,11 @@ void abortProcess(struct process processNumber)
 	scanf("%c", &ch);
 	if (ch=='Y')
 	{
-		currentResources[k] += processNumber->resourcesAllocated[k];
-		processNumber->resourcesAllocated[k++] = 0;
+		currentResources[k] += processNumber.resourcesAllocated[k];
+		processNumber.resourcesAllocated[k++] = 0;
 	}
-	processNum = pop(q);
-	if (processNum->processID!=-1)
+	processNum = pop();
+	if (processNum.processID!=-1)
 		printf("Process has been successfully aborted!");
 	else
 		printf("Abortion unsuccessful");

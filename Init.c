@@ -1,17 +1,21 @@
 #include<stdio.h>
 #include<stdlib.h>
 #define numResources 5
+#define quantum 3
+
+/***************** global declarations *****************/
 int maxResources[numResources];
 int currentResources[numResources];
 int processCount;
 enum types {requestNew, releaseOld};
-
 unsigned long long int timeElapsed;
 
+/***************** structures *****************/
 struct process
 {
-	int burstTime,arrivalTime;
+	int burstTime,arrivalTime,waitTime;
 	int processID;
+	int priority;
 	int resourcesAllocated[numResources];
 };
 
@@ -25,16 +29,15 @@ struct requestLog
 
 struct requestLog *root = NULL;
 
-/* Ready Queue Starts*/
 struct queue
 {
 	int front,rear,currentSize;
 	struct process *Arr;
 };
 
-//Ready Queue
 struct queue readyQueue;
 
+/***************** basic functions *****************/
 int isEmpty()
 {
 	if(readyQueue.front==readyQueue.rear)
@@ -57,16 +60,30 @@ struct process pop()
 	return readyQueue.Arr[readyQueue.front++];
 }
 
-/* Ready Queue Ends*/
-
+// Deleting entire process in case of abort //
 void deleteLinkedList(struct requestLog *head)
 {
-	if(head->rightlink==NULL) free(head);
+	if(head->rightlink==NULL) 
+		free(head);
 	else
-	deleteLinkedList(head->rightlink);
+		deleteLinkedList(head->rightlink);
 }
 
-/* Init Functions Start */
+struct process getProcessID(int id)
+{
+	int i;
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		if(readyQueue.Arr[i].processID==id)
+			return readyQueue.Arr[i];
+	}
+}
+
+int getArrivalTime()
+{
+	return timeElapsed;
+}
+/***************** Initializing functions *****************/
 void initResources()
 {
 	for(int i=0;i<numResources;i++)
@@ -89,30 +106,23 @@ void initAll()
 	initResources();
 	initReadyQueue();
 }
-/* Init Functions End */
 
-unsigned long long int getArrivalTime()
-{
-	return timeElapsed;
-}
-
+/***************** Ready Queue Status *****************/
 void currentStatus()
 {
-	printf("READY QUEUE: \n");
-	for (int i=readyQueue.front;i<readyQueue.rear;i++)
+	if(readyQueue.front>=readyQueue.rear)
+		printf("CPU is IDLE.\n");
+	else
 	{
-		printf("Process ID - %d\t",readyQueue.Arr[i].processID);
+		printf("READY QUEUE: \n");
+		for (int i=readyQueue.front;i<readyQueue.rear;i++)
+		{
+			printf("Process ID - %d\t",readyQueue.Arr[i].processID);
+		}
 	}
 }
 
-int printMenu()
-{
-	int opt=0;
-	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n");
-	scanf("%d",&opt);
-	return opt;
-}
-
+/***************** Pending Request Functions *****************/
 void grantRequests()
 {
 	struct requestLog *curr = root, *currRequest;
@@ -174,19 +184,26 @@ void logRequests(int id, int type, int resNum, int resInstances)
 		temp->downlink = NULL;		
 		temp = curr->downlink;
 	}
-	//grantRequests();
 }
 
-struct process getProcessID(int id)
+void checkRequests()
 {
-	int i;
-	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	struct requestLog *curr=root;
+	struct process copy;
+	while (curr->downlink!=NULL)
 	{
-		if(readyQueue.Arr[i].processID==id)
-			return readyQueue.Arr[i];
+		if (curr->requestType == readyQueue.Arr[readyQueue.front].processID)
+		{
+			//insert code to grant requests
+		}
+		else
+			curr = curr->downlink;
 	}
+	if (curr==NULL)
+		printf("No pending requests for process ID - %d",readyQueue.Arr[readyQueue.front].processID);
 }
 
+/***************** User Options *****************/
 void newProcess()
 {
 	printf("Enter new process details: \n");
@@ -332,7 +349,6 @@ void abortProcess(int procID)
 	currentStatus();
 }
 
-
 void printProcessStatus()
 {
 	printf("Process Status: \n");
@@ -352,38 +368,70 @@ void printProcessStatus()
 	}
 }
 
+/***************** Menu *****************/
+void askUser()
+{
+	int opt=0,procID;
+	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
+	scanf("%d",&opt);
+	switch(opt)
+	{
+		case 1:	newProcess();
+				break;
+		case 2: printf("Enter process ID of the process: ");
+				scanf("%d",&procID);
+				requestResources(procID);
+				break;
+		case 3: printf("Enter process ID of the process: ");
+				scanf("%d",&procID);
+				releaseResources(procID);
+				break;
+		case 4: printf("Enter process ID of the process: ");
+				scanf("%d",&procID);
+				abortProcess(procID);
+				break;
+		case 5: printProcessStatus();
+				break;
+		default: break;
+	}		
+}
 
+/***************** Scheduling *****************/
+void RoundRobin()
+{
+	struct process finishedProcess;
+	int startTime,count;
+	while (readyQueue.front!=readyQueue.rear)
+	{
+		startTime = timeElapsed;
+		count=0;
+		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime!=0)
+		{
+			//checkRequests();
+			count++;
+			readyQueue.Arr[readyQueue.front].burstTime--;
+			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
+				readyQueue.Arr[i].waitTime++;			
+			askUser();
+			timeElapsed++;
+		}
+		printf("Process %d runs from t = %d ms to t = %d ms \n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
+		if (readyQueue.Arr[readyQueue.front].burstTime==0)
+			finishedProcess = pop();			
+		else 
+			push(pop());
+	}
+	currentStatus();
+}
+
+/***************** Main *****************/
 int main()
 {
-	int count=0,opt,procID;
 	initAll();
 	while(1)
 	{
-		if (count%10==0)
-			opt = printMenu();
-		switch(opt)
-		{
-			case 1:	newProcess();
-					break;
-			case 2: printf("Enter process ID of the process: ");
-					scanf("%d",&procID);
-					requestResources(procID);
-					break;
-			case 3: printf("Enter process ID of the process: ");
-					scanf("%d",&procID);
-					releaseResources(procID);
-					break;
-			case 4: printf("Enter process ID of the process: ");
-					scanf("%d",&procID);
-					abortProcess(procID);
-					break;
-			case 5: printProcessStatus();
-					break;
-			default: break;
-		}
-		count++;
-		timeElapsed++;
-		opt=0;
+		askUser();
+		RoundRobin();
 	}
 	return 0;
 }

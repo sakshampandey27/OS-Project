@@ -3,6 +3,7 @@
 #define numResources 5
 int maxResources[numResources];
 int currentResources[numResources];
+int processCount;
 enum types {requestNew, releaseOld};
 
 unsigned long long int timeElapsed;
@@ -77,6 +78,7 @@ void initReadyQueue()
 void initAll()
 {
 	timeElapsed=0;
+	processCount=1000;
 	initResources();
 	initReadyQueue();
 }
@@ -89,15 +91,49 @@ unsigned long long int getArrivalTime()
 
 void currentStatus()
 {
+	printf("READY QUEUE: \n");
 	for (int i=readyQueue.front;i<readyQueue.rear;i++)
 	{
-		printf("P%d\t",readyQueue.Arr[i].processID);
+		printf("Process ID - %d\t",readyQueue.Arr[i].processID);
 	}
+}
+
+int printMenu()
+{
+	int opt=0;
+	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n");
+	scanf("%d",&opt);
+	return opt;
+}
+
+void grantRequests()
+{
+	struct requestLog *curr = root, *currRequest;
+	struct process running = readyQueue.Arr[readyQueue.front];
+	while (curr->requestType!=running.processID)
+		curr = curr->downlink;
+	currRequest = curr->rightlink;	
+	while (currRequest!=NULL)
+	{
+		if (currRequest->requestType == requestNew)
+		{
+			//insert code to check if request can be granted
+			running.resourcesAllocated[currRequest->resourceNumber] += currRequest->resourceInstances;
+			currentResources[currRequest->resourceNumber] -= currRequest->resourceInstances;
+		}		
+		else if (currRequest->requestType == releaseOld)
+		{
+			running.resourcesAllocated[currRequest->resourceNumber] -= currRequest->resourceInstances;
+			currentResources[currRequest->resourceNumber] += currRequest->resourceInstances;
+		}
+		currRequest = currRequest->rightlink;
+	}
+	printf("All pending requests for process ID - %d granted!",running.processID);
 }
 
 void logRequests(int id, int type, int resNum, int resInstances)
 {
-	struct requestLog *curr=root;
+	struct requestLog *curr=root, *temp;
 	struct requestLog *newRequest;
 	newRequest = (struct requestLog *)malloc(sizeof(struct requestLog));
 	newRequest->requestType = type;
@@ -122,11 +158,32 @@ void logRequests(int id, int type, int resNum, int resInstances)
 		else
 			curr = curr->downlink;
 	}
+	if (curr->downlink==NULL)
+	{
+		temp=(struct requestLog *)malloc(sizeof(struct requestLog));
+		temp->rightlink=NULL;
+		temp->requestType = id;
+		temp->resourceNumber = temp->resourceInstances = -1;
+		temp->downlink = NULL;		
+		temp = curr->downlink;
+	}
+	grantRequests();
+}
+
+struct process getProcessID(int id)
+{
+	int i;
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		if(readyQueue.Arr[i].processID==id)
+			return readyQueue.Arr[i];
+	}
+//	return;
 }
 
 void newProcess()
 {
-	printf("Enter new process details : ");
+	printf("Enter new process details: \n");
 	struct process *p;
 	p=(struct process *)malloc(sizeof(struct process));
 	p->arrivalTime=getArrivalTime();
@@ -137,45 +194,52 @@ void newProcess()
 	{
 		printf("Enter request for resource %d",i);
 		scanf("%d",&p->resourcesAllocated[i]);
+		if (p->resourcesAllocated[i] > maxResources[i])
+		{
+			printf("Please enter a number between 0 and %d\n",maxResources[i]);
+			i--;
+		}
 	}
-	//Push process to end of queue
+	p->processID = processCount++;
+	printf("Process ID is %d\n",p->processID);
 	push(*p);
+	currentStatus();
 }
 
-int getProcessIndex()
+void requestResources(int procID) //
 {
-	int ID,i;
-	printf("Enter process ID : ");
-	scanf("%d",&ID);
-	for(i=readyQueue.front;i<readyQueue.rear;i++)
-	{
-		if(readyQueue.Arr[i].processID==ID)
-			break;
-	}
-	return i;
-}
-
-void requestResources() //
-{
-	int ID=getProcessIndex();
-	int resourceNumber,numberOfInstances;
-	printf("Process ID is : %d \n",ID);
-	printf("Enter resource number for request");
+	struct process found=getProcessID(procID);
+	int resourceNumber,numberOfInstances=100;
+	printf("Process ID is : %d \n",found.processID);
+	printf("Enter resource number for request: ");
 	scanf("%d",&resourceNumber);
-	printf("Enter number of instances to request");
-	scanf("%d",&numberOfInstances);
-	logRequests(ID,requestNew,resourceNumber,numberOfInstances);
+	while (numberOfInstances > maxResources[resourceNumber])
+	{
+		printf("Enter number of instances to request: ");
+		scanf("%d",&numberOfInstances);
+		if (numberOfInstances > maxResources[resourceNumber])
+			printf("Please enter a number between 0 and %d\n",maxResources[resourceNumber]);
+	}
+	logRequests(found.processID,requestNew,resourceNumber,numberOfInstances);
 	//Request kept as a log
+	currentStatus();
 }
 
-void releaseResources(struct process processNumber)
+void releaseResources(int procID)
 {
-	int num, ch;
-	printf("Which resource do you want to release? \n");
-	scanf("%d",&ch);
-	printf("How many instances do you want to release? \n");
-	scanf("%d",&num);
-	logRequests(processNumber.processID, releaseOld, ch, num);
+	struct process found=getProcessID(procID);
+	int resourceNumber,numberOfInstances;
+	printf("Process ID is : %d \n",found.processID);
+	printf("Enter resource number to be released: ");
+	scanf("%d",&resourceNumber);
+	while (numberOfInstances < found.resourcesAllocated[resourceNumber])
+	{
+		printf("Enter number of instances to be released: ");
+		scanf("%d",&numberOfInstances);
+		if (numberOfInstances > found.resourcesAllocated[resourceNumber])
+			printf("Please enter a number between 0 and %d\n",found.resourcesAllocated[resourceNumber]);
+	}
+	logRequests(found.processID,requestNew,resourceNumber,numberOfInstances);
 	/*
 	if (num > processNumber->resourcesAllocated[ch])
 		printf("Insufficent resources!\nCurrent allocation = %d",processNumber->resourcesAllocated[ch]);
@@ -193,28 +257,99 @@ void releaseResources(struct process processNumber)
 	currentStatus();
 }
 
-void abortProcess(struct process processNumber)
+void abortProcess(int procID)
 {
-	int k=0;
-	struct process processNum;
+	int k=0,flag=0;
+	struct process found;
+	struct requestLog *curr = root, *prev = curr;
 	char ch;
-	printf("Are you sure you want to abort this process?(Y/N)");
-	scanf("%c", &ch);
+	found = getProcessID(procID);
+	//insert code to check if ID exists
+	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
+	scanf("%c ", &ch);
 	if (ch=='Y')
-	{
-		currentResources[k] += processNumber.resourcesAllocated[k];
-		processNumber.resourcesAllocated[k++] = 0;
+	{	
+		while (curr->requestType!=found.processID && curr->downlink!=NULL)
+		{
+			prev = curr;
+			curr= curr->downlink;
+		}
+		if (curr->requestType==found.processID && curr->downlink==NULL)
+		{
+			prev->downlink = NULL;
+			curr = NULL;				
+		}	
+		else if (curr->requestType!=found.processID && curr->downlink==NULL)	
+		{
+			printf("This process has no pending requests...\n");
+		}
+		else
+		{
+			printf("Cancelling all pending requests...\n");
+			prev->downlink = curr->downlink;
+			curr->downlink = NULL;			
+		}
+		for(int i=readyQueue.front;i<readyQueue.rear;i++)
+		{
+			if (readyQueue.Arr[i].processID = found.processID)
+				readyQueue.Arr[i]=readyQueue.Arr[i+1];
+		}
+			readyQueue.rear--;
+			currentResources[k] += found.resourcesAllocated[k];
+			found.resourcesAllocated[k++] = 0;
+		printf("Process aborted successfully!\n");
 	}
-	processNum = pop();
-	if (processNum.processID!=-1)
-		printf("Process has been successfully aborted!");
 	else
-		printf("Abortion unsuccessful");
+		printf("Process not aborted!\n");
 	currentStatus();
 }
 
+
+void printProcessStatus()
+{
+	printf("Process Status: \n");
+	printf("Running process -> Process ID %d\n",readyQueue.Arr[readyQueue.front].processID);
+	for(int i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		printf("\nID - %d\n",readyQueue.Arr[i].processID);
+		for (int j=0;j<numResources;j++)
+		{
+			printf("  Resource %d - %d\n",j,readyQueue.Arr[i].resourcesAllocated[j]);
+		}
+	}
+}
+
+
 int main()
 {
+	int count=0,opt,procID;
 	initAll();
+	while(1)
+	{
+		if (count%10==0)
+			opt = printMenu();
+		switch(opt)
+		{
+			case 1:	newProcess();
+					break;
+			case 2: printf("Enter process ID of the process: ");
+					scanf("%d",&procID);
+					requestResources(procID);
+					break;
+			case 3: printf("Enter process ID of the process: ");
+					scanf("%d",&procID);
+					releaseResources(procID);
+					break;
+			case 4: printf("Enter process ID of the process: ");
+					scanf("%d",&procID);
+					abortProcess(procID);
+			case 5: printProcessStatus();
+					break;
+			default: break;
+		}
+		count++;
+		timeElapsed++;
+		opt=0;
+	}
 	return 0;
 }

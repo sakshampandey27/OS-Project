@@ -174,7 +174,7 @@ void logRequests(int id, int type, int resNum, int resInstances)
 		temp->downlink = NULL;		
 		temp = curr->downlink;
 	}
-	grantRequests();
+	//grantRequests();
 }
 
 struct process getProcessID(int id)
@@ -215,25 +215,36 @@ void newProcess()
 void requestResources(int procID) //
 {
 	struct process found=getProcessID(procID);
-	int resourceNumber,numberOfInstances=100;
-	printf("Process ID is : %d \n",found.processID);
+	if(procID!=found.processID)
+	{
+		printf("There is no running process with the process ID %d\n",procID);
+		return;
+	}
+	int resourceNumber,numberOfInstances;
 	printf("Enter resource number for request: ");
 	scanf("%d",&resourceNumber);
-	while (numberOfInstances > maxResources[resourceNumber])
+	printf("Enter number of instances for request: ");
+	scanf("%d",&numberOfInstances);
+	if(found.resourcesAllocated[resourceNumber]+numberOfInstances <= maxResources[resourceNumber])
 	{
-		printf("Enter number of instances to request: ");
-		scanf("%d",&numberOfInstances);
-		if (numberOfInstances > maxResources[resourceNumber])
-			printf("Please enter a number between 0 and %d\n",maxResources[resourceNumber]);
+		logRequests(found.processID,requestNew,resourceNumber,numberOfInstances);
 	}
-	logRequests(found.processID,requestNew,resourceNumber,numberOfInstances);
+	else
+	{
+		printf("Total request by the process exceeds the max resources the system can provide!!!\n");
+	}
 	//Request kept as a log
-	currentStatus();
+	//currentStatus();
 }
 
 void releaseResources(int procID)
 {
 	struct process found=getProcessID(procID);
+	if(procID!=found.processID)
+	{
+		printf("There is no running process with the process ID %d\n",procID);
+		return;
+	}
 	int resourceNumber,numberOfInstances;
 	printf("Process ID is : %d \n",found.processID);
 	printf("Enter resource number to be released: ");
@@ -270,6 +281,11 @@ void abortProcess(int procID)
 	struct requestLog *curr = root, *prev = curr;
 	char ch;
 	found = getProcessID(procID);
+	if(procID!=found.processID)
+	{
+		printf("There is no running process with the process ID %d\n",procID);
+		return;
+	}
 	//insert code to check if ID exists
 	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
 	scanf("%c", &ch);
@@ -320,7 +336,7 @@ void abortProcess(int procID)
 void printProcessStatus()
 {
 	printf("Process Status: \n");
-	if(readyQueue.front==readyQueue.rear)
+	if(readyQueue.front>=readyQueue.rear)
 	{
 		printf("CPU is IDLE.\n");
 		return;

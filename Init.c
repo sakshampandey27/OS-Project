@@ -122,6 +122,9 @@ void currentStatus()
 			printf("Process ID - %d\t",readyQueue.Arr[i].processID);
 		}
 	}
+	printf("Current Resources Available: \n");
+	for (int i=0;i<numResources;i++)
+		printf(" R%d - %d  ",i,currentResources[i]);
 }
 
 /***************** Pending Request Functions *****************/
@@ -190,13 +193,30 @@ void logRequests(int id, int type, int resNum, int resInstances)
 
 void checkRequests()
 {
-	struct requestLog *curr=root;
+	struct requestLog *curr=root,*req=curr;
 	struct process copy;
 	while (curr->downlink!=NULL)
 	{
 		if (curr->requestType == readyQueue.Arr[readyQueue.front].processID)
 		{
-			//insert code to grant requests
+			copy = readyQueue.Arr[readyQueue.front];
+			req = curr->rightlink;
+			while (req!=NULL)
+			{
+				if (req->requestType == releaseOld)
+					copy.resourcesAllocated[req->resourceNumber] -= req->resourceInstances;
+				else if (req->requestType == requestNew)
+					copy.resourcesAllocated[req->resourceNumber] += req->resourceInstances;
+
+				curr->rightlink = req->rightlink;
+				req->rightlink=NULL;
+				free(req);
+			}
+			for (int j=0;j<numResources;j++)
+			{
+				if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] < currentResources[j])
+					j++;
+			}
 		}
 		else
 			curr = curr->downlink;
@@ -228,6 +248,8 @@ void newProcess()
 	p->processID = processCount++;
 	printf("Process ID is %d\n",p->processID);
 	push(*p);
+	for (int i=0;i<numResources;i++)
+		currentResources[i] -= p->resourcesAllocated[i];
 	currentStatus();
 }
 
@@ -252,8 +274,7 @@ void requestResources(int procID) //
 	{
 		printf("Total request by the process exceeds the max resources the system can provide!!!\n");
 	}
-	//Request kept as a log
-	//currentStatus();
+	currentStatus();
 }
 
 void releaseResources(int procID)
@@ -276,20 +297,6 @@ void releaseResources(int procID)
 			printf("Please enter a number between 0 and %d\n",found.resourcesAllocated[resourceNumber]);
 	}
 	logRequests(found.processID,requestNew,resourceNumber,numberOfInstances);
-	/*
-	if (num > processNumber->resourcesAllocated[ch])
-		printf("Insufficent resources!\nCurrent allocation = %d",processNumber->resourcesAllocated[ch]);
-	else if (num < processNumber->resourcesAllocated[ch])
-	{
-		currentResources[ch] += num;
-		processNumber->resourcesAllocated[ch++] -= num;		
-	}
-	else
-	{
-		currentResources[ch] += num;
-		processNumber->resourcesAllocated[ch]=0;
-	}
-	*/
 	currentStatus();
 }
 
@@ -306,8 +313,7 @@ void abortProcess(int procID)
 		return;
 	}
 	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
-	scanf("%c", &ch);
-	scanf("%c", &ch);
+	scanf("%c ", &ch);
 	if (ch=='Y')
 	{
 		while (curr!=NULL && curr->requestType!=found.processID && curr->downlink!=NULL)

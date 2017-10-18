@@ -59,6 +59,13 @@ struct process pop()
 
 /* Ready Queue Ends*/
 
+void deleteLinkedList(struct requestLog *head)
+{
+	if(head->rightlink==NULL) free(head);
+	else
+	deleteLinkedList(head->rightlink);
+}
+
 /* Init Functions Start */
 void initResources()
 {
@@ -178,7 +185,6 @@ struct process getProcessID(int id)
 		if(readyQueue.Arr[i].processID==id)
 			return readyQueue.Arr[i];
 	}
-//	return;
 }
 
 void newProcess()
@@ -259,44 +265,50 @@ void releaseResources(int procID)
 
 void abortProcess(int procID)
 {
-	int k=0,flag=0;
+	int k=0,flag=0,i;
 	struct process found;
 	struct requestLog *curr = root, *prev = curr;
 	char ch;
 	found = getProcessID(procID);
 	//insert code to check if ID exists
 	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
-	scanf("%c ", &ch);
+	scanf("%c", &ch);
+	scanf("%c", &ch);
 	if (ch=='Y')
-	{	
-		while (curr->requestType!=found.processID && curr->downlink!=NULL)
+	{
+		while (curr!=NULL && curr->requestType!=found.processID && curr->downlink!=NULL)
 		{
 			prev = curr;
 			curr= curr->downlink;
 		}
-		if (curr->requestType==found.processID && curr->downlink==NULL)
+		if (curr!=NULL && curr->requestType==found.processID)
 		{
-			prev->downlink = NULL;
-			curr = NULL;				
-		}	
-		else if (curr->requestType!=found.processID && curr->downlink==NULL)	
-		{
-			printf("This process has no pending requests...\n");
+			prev->downlink = curr->downlink;
+			deleteLinkedList(curr);	
 		}
 		else
 		{
-			printf("Cancelling all pending requests...\n");
-			prev->downlink = curr->downlink;
-			curr->downlink = NULL;			
+			printf("This process has no pending requests...\n");
 		}
-		for(int i=readyQueue.front;i<readyQueue.rear;i++)
+		for(i=readyQueue.front;i<readyQueue.rear;i++)
 		{
-			if (readyQueue.Arr[i].processID = found.processID)
+			if (readyQueue.Arr[i].processID == found.processID)
+			{
+				for(k=0;k<numResources;k++)
+				{
+					currentResources[k] += found.resourcesAllocated[k];
+				}
 				readyQueue.Arr[i]=readyQueue.Arr[i+1];
+				break;
+			}
 		}
-			readyQueue.rear--;
-			currentResources[k] += found.resourcesAllocated[k];
-			found.resourcesAllocated[k++] = 0;
+		i++;
+		while(i<readyQueue.rear-1)
+		{
+			readyQueue.Arr[i]=readyQueue.Arr[i+1];
+			i++;
+		}
+		readyQueue.rear--;
 		printf("Process aborted successfully!\n");
 	}
 	else
@@ -308,6 +320,11 @@ void abortProcess(int procID)
 void printProcessStatus()
 {
 	printf("Process Status: \n");
+	if(readyQueue.front==readyQueue.rear)
+	{
+		printf("CPU is IDLE.\n");
+		return;
+	}
 	printf("Running process -> Process ID %d\n",readyQueue.Arr[readyQueue.front].processID);
 	for(int i=readyQueue.front;i<readyQueue.rear;i++)
 	{
@@ -343,6 +360,7 @@ int main()
 			case 4: printf("Enter process ID of the process: ");
 					scanf("%d",&procID);
 					abortProcess(procID);
+					break;
 			case 5: printProcessStatus();
 					break;
 			default: break;

@@ -4,6 +4,7 @@
 #define quantum 3
 
 /***************** global declarations *****************/
+FILE *fp;
 int maxResources[numResources];
 int currentResources[numResources];
 int processCount;
@@ -105,6 +106,7 @@ void initAll()
 	processCount=1000;
 	initResources();
 	initReadyQueue();
+	fp=fopen("sharedMemory.txt", "w");
 }
 
 /***************** Ready Queue Status *****************/
@@ -303,7 +305,6 @@ void abortProcess(int procID)
 		printf("There is no running process with the process ID %d\n",procID);
 		return;
 	}
-	//insert code to check if ID exists
 	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
 	scanf("%c", &ch);
 	scanf("%c", &ch);
@@ -368,10 +369,67 @@ void printProcessStatus()
 	}
 }
 
+/***************** File Operations ******************/
+void writeReadyQueue()
+{
+	int i;
+	fprintf(fp, "ReadyQueue ");
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp,"%d ",readyQueue.Arr[i].processID);
+	}
+	fprintf(fp,"\n");
+}
+
+void writeBurstTimes()
+{
+	int i;
+	fprintf(fp, "BurstTimes ");
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp,"%d ",readyQueue.Arr[i].burstTime);
+	}
+	fprintf(fp,"\n");
+}
+
+void writeResourcesAllocated()
+{
+	fprintf(fp, "ResourcesAllocated\n");
+	for(int i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp, "PID-%d ",readyQueue.Arr[i].processID);
+		for(int j=0;j<numResources;j++)
+		{
+			fprintf(fp,"%d ",readyQueue.Arr[i].resourcesAllocated[j]);
+		}
+		fprintf(fp,"\n");
+	}
+}
+
+void writeNumProcesses()
+{
+	fprintf(fp, "%d\n",(readyQueue.rear - readyQueue.front));
+}
+
+void writeToFile()
+{
+	writeNumProcesses();
+	writeReadyQueue();
+	writeBurstTimes();
+	writeResourcesAllocated();
+}
+
+void resetFile()
+{
+	fclose(fopen("sharedMemory.txt", "w"));
+	fflush(fp);
+}
+
 /***************** Menu *****************/
 void askUser()
 {
 	int opt=0,procID;
+	resetFile();
 	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
 	scanf("%d",&opt);
 	switch(opt)
@@ -393,7 +451,8 @@ void askUser()
 		case 5: printProcessStatus();
 				break;
 		default: break;
-	}		
+	}
+	writeToFile();
 }
 
 /***************** Scheduling *****************/
@@ -411,14 +470,14 @@ void RoundRobin()
 			count++;
 			readyQueue.Arr[readyQueue.front].burstTime--;
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
-				readyQueue.Arr[i].waitTime++;			
+				readyQueue.Arr[i].waitTime++;
 			askUser();
 			timeElapsed++;
 		}
-		printf("Process %d runs from t = %d ms to t = %d ms \n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
+		printf("Process %d runs from t = %d ms to t = %llu ms \n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
 		if (readyQueue.Arr[readyQueue.front].burstTime==0)
-			finishedProcess = pop();			
-		else 
+			finishedProcess = pop();
+		else
 			push(pop());
 	}
 	currentStatus();

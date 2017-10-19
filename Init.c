@@ -126,31 +126,6 @@ void currentStatus()
 }
 
 /***************** Pending Request Functions *****************/
-void grantRequests()
-{
-	struct requestLog *curr = root, *currRequest;
-	struct process running = readyQueue.Arr[readyQueue.front];
-	while (curr->requestType!=running.processID)
-		curr = curr->downlink;
-	currRequest = curr->rightlink;	
-	while (currRequest!=NULL)
-	{
-		if (currRequest->requestType == requestNew)
-		{
-			//insert code to check if request can be granted
-			running.resourcesAllocated[currRequest->resourceNumber] += currRequest->resourceInstances;
-			currentResources[currRequest->resourceNumber] -= currRequest->resourceInstances;
-		}		
-		else if (currRequest->requestType == releaseOld)
-		{
-			running.resourcesAllocated[currRequest->resourceNumber] -= currRequest->resourceInstances;
-			currentResources[currRequest->resourceNumber] += currRequest->resourceInstances;
-		}
-		currRequest = currRequest->rightlink;
-	}
-	printf("All pending requests for process ID - %d granted!",running.processID);
-}
-
 void logRequests(int id, int type, int resNum, int resInstances)
 {
 	struct requestLog *curr=root, *temp;
@@ -189,10 +164,11 @@ void logRequests(int id, int type, int resNum, int resInstances)
 	}
 }
 
-void checkRequests()
+void grantRequests()
 {
 	struct requestLog *curr=root,*req=curr;
 	struct process copy;
+	int j=0;
 	while (curr->downlink!=NULL)
 	{
 		if (curr->requestType == readyQueue.Arr[readyQueue.front].processID)
@@ -202,7 +178,11 @@ void checkRequests()
 			while (req!=NULL)
 			{
 				if (req->requestType == releaseOld)
+				{
 					copy.resourcesAllocated[req->resourceNumber] -= req->resourceInstances;
+					readyQueue.Arr[readyQueue.front].resourcesAllocated[req->resourceNumber] -= req->resourceInstances;
+					currentResources[req->resourceNumber] += req->resourceInstances;
+				}
 				else if (req->requestType == requestNew)
 					copy.resourcesAllocated[req->resourceNumber] += req->resourceInstances;
 
@@ -210,11 +190,43 @@ void checkRequests()
 				req->rightlink=NULL;
 				free(req);
 			}
-			for (int j=0;j<numResources;j++)
+			curr = root;
+			struct requestLog *prev = curr;
+			while (j<numResources)
 			{
-				if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] < currentResources[j])
+				if (copy.resourcesAllocated[j] > maxResources[j])
+				{
+					deleteLinkedList(curr);
+					break;
+				}
+				if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] < currentResources[j]) 
 					j++;
+				else
+					break;
 			}
+			if (j==numResources)
+			{
+				for (int k=0;k<numResources;k++)
+					currentResources[k] -= copy.resourcesAllocated[k] - readyQueue.Arr[readyQueue.front].resourcesAllocated[k];		
+				readyQueue.Arr[readyQueue.front] = copy;
+				while (curr!=NULL && curr->requestType!=readyQueue.Arr[readyQueue.front].processID)
+				{
+					prev=curr;
+					curr=curr->downlink;					
+				}
+				if (curr!=NULL && curr->requestType==readyQueue.Arr[readyQueue.front].processID)
+				{
+					prev->downlink = curr->downlink;
+					curr->downlink=NULL;
+					deleteLinkedList(curr);
+				}
+			}
+			else
+			{
+				printf("All requests cannot be granted at this time. \n");
+				push(pop());
+			}
+			free(copy);
 		}
 		else
 			curr = curr->downlink;
@@ -314,7 +326,7 @@ void abortProcess(int procID)
 	scanf("%c ", &ch);
 	if (ch=='Y')
 	{
-		while (curr!=NULL && curr->requestType!=found.processID && curr->downlink!=NULL)
+		while (curr!=NULL && curr->requestType!=found.processID)
 		{
 			prev = curr;
 			curr= curr->downlink;
@@ -325,9 +337,7 @@ void abortProcess(int procID)
 			deleteLinkedList(curr);	
 		}
 		else
-		{
 			printf("This process has no pending requests...\n");
-		}
 		for(i=readyQueue.front;i<readyQueue.rear;i++)
 		{
 			if (readyQueue.Arr[i].processID == found.processID)
@@ -412,11 +422,11 @@ void RoundRobin()
 		count=0;
 		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime!=0)
 		{
-			//checkRequests();
+			grantRequests();
 			count++;
 			readyQueue.Arr[readyQueue.front].burstTime--;
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
-				readyQueue.Arr[i].waitTime++;			
+				readyQueue.Arr[i].waitTime++;
 			askUser();
 			timeElapsed++;
 		}

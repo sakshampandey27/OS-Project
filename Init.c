@@ -114,7 +114,7 @@ void initAll()
 void currentStatus()
 {
 	if(readyQueue.front>=readyQueue.rear)
-		printf("CPU is IDLE.\n");
+		printf("CPU is IDLE. \n");
 	else
 	{
 		printf("READY QUEUE: \n");

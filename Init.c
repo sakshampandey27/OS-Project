@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<ctype.h>
 #define numResources 5
 #define quantum 3
 
@@ -127,6 +128,63 @@ void currentStatus()
 		printf(" R%d - %d  ",i,currentResources[i]);
 }
 
+/***************** File Operations ******************/
+void writeReadyQueue()
+{
+	int i;
+	fprintf(fp, "ReadyQueue ");
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp,"%d ",readyQueue.Arr[i].processID);
+	}
+	fprintf(fp,"\n");
+}
+
+void writeBurstTimes()
+{
+	int i;
+	fprintf(fp, "BurstTimes ");
+	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp,"%d ",readyQueue.Arr[i].burstTime);
+	}
+	fprintf(fp,"\n");
+}
+
+void writeResourcesAllocated()
+{
+	fprintf(fp, "ResourcesAllocated\n");
+	for(int i=readyQueue.front;i<readyQueue.rear;i++)
+	{
+		fprintf(fp, "PID-%d ",readyQueue.Arr[i].processID);
+		for(int j=0;j<numResources;j++)
+		{
+			fprintf(fp,"%d ",readyQueue.Arr[i].resourcesAllocated[j]);
+		}
+		fprintf(fp,"\n");
+	}
+}
+
+void writeNumProcesses()
+{
+	fprintf(fp, "%d\n",(readyQueue.rear - readyQueue.front));
+}
+
+void writeToFile()
+{
+	writeNumProcesses();
+	writeReadyQueue();
+	writeBurstTimes();
+	writeResourcesAllocated();
+}
+
+void resetFile()
+{
+	fclose(fopen("sharedMemory.txt", "w"));
+	fflush(fp);
+}
+
+
 /***************** Pending Request Functions *****************/
 void logRequests(int id, int type, int resNum, int resInstances)
 {
@@ -228,7 +286,6 @@ void grantRequests()
 				printf("All requests cannot be granted at this time. \n");
 				push(pop());
 			}
-			free(copy);
 		}
 		else
 			curr = curr->downlink;
@@ -245,7 +302,7 @@ void newProcess()
 	p=(struct process *)malloc(sizeof(struct process));
 	p->arrivalTime=getArrivalTime();
 	printf("Enter burst Time : ");
-	scanf("%d",&p->burstTime);
+	scanf("%d",&(p->burstTime));
 	printf("Enter initial resources required : ");
 	for(int i=0;i<numResources;i++)
 	{
@@ -385,62 +442,6 @@ void printProcessStatus()
 	}
 }
 
-/***************** File Operations ******************/
-void writeReadyQueue()
-{
-	int i;
-	fprintf(fp, "ReadyQueue ");
-	for(i=readyQueue.front;i<readyQueue.rear;i++)
-	{
-		fprintf(fp,"%d ",readyQueue.Arr[i].processID);
-	}
-	fprintf(fp,"\n");
-}
-
-void writeBurstTimes()
-{
-	int i;
-	fprintf(fp, "BurstTimes ");
-	for(i=readyQueue.front;i<readyQueue.rear;i++)
-	{
-		fprintf(fp,"%d ",readyQueue.Arr[i].burstTime);
-	}
-	fprintf(fp,"\n");
-}
-
-void writeResourcesAllocated()
-{
-	fprintf(fp, "ResourcesAllocated\n");
-	for(int i=readyQueue.front;i<readyQueue.rear;i++)
-	{
-		fprintf(fp, "PID-%d ",readyQueue.Arr[i].processID);
-		for(int j=0;j<numResources;j++)
-		{
-			fprintf(fp,"%d ",readyQueue.Arr[i].resourcesAllocated[j]);
-		}
-		fprintf(fp,"\n");
-	}
-}
-
-void writeNumProcesses()
-{
-	fprintf(fp, "%d\n",(readyQueue.rear - readyQueue.front));
-}
-
-void writeToFile()
-{
-	writeNumProcesses();
-	writeReadyQueue();
-	writeBurstTimes();
-	writeResourcesAllocated();
-}
-
-void resetFile()
-{
-	fclose(fopen("sharedMemory.txt", "w"));
-	fflush(fp);
-}
-
 /***************** Menu *****************/
 void askUser()
 {
@@ -482,7 +483,7 @@ void RoundRobin()
 		count=0;
 		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime!=0)
 		{
-			grantRequests();
+			//grantRequests();
 			count++;
 			readyQueue.Arr[readyQueue.front].burstTime--;
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
@@ -492,7 +493,11 @@ void RoundRobin()
 		}
 		printf("Process %d runs from t = %d ms to t = %llu ms \n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
 		if (readyQueue.Arr[readyQueue.front].burstTime==0)
+		{
+			for (int k=0;k<numResources;k++)
+				currentResources[k] += finishedProcess.resourcesAllocated[k];
 			finishedProcess = pop();
+		}
 		else
 			push(pop());
 	}

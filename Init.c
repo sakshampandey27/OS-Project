@@ -494,7 +494,7 @@ void RoundRobin()
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
 				readyQueue.Arr[i].waitTime++;
 			askUser();
-		}		
+		}
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
 		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime==timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
 		{

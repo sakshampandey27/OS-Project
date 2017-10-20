@@ -97,6 +97,7 @@ void initResources()
 
 void initReadyQueue()
 {
+	readyQueue.front=readyQueue.rear=0;
 	readyQueue.currentSize=1;
 	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
 }

@@ -97,8 +97,8 @@ void initResources()
 
 void initReadyQueue()
 {
-	readyQueue.currentSize=10;
-	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));	
+	readyQueue.currentSize=1;
+	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
 }
 
 void initAll()
@@ -493,13 +493,13 @@ void RoundRobin()
 			askUser();
 		}		
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
-		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime==timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
+		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime<=timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
 		{
 			finishedProcess = pop();
 			for (int k=0;k<numResources;k++)
 				currentResources[k] += finishedProcess.resourcesAllocated[k];
 		}
-		else if(readyQueue.front<readyQueue.rear)
+		else //if(readyQueue.front<readyQueue.rear)
 			push(pop());
 	}
 	currentStatus();

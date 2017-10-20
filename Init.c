@@ -44,7 +44,7 @@ struct queue
 };
 
 struct queue readyQueue;
-struct burstTimes *allBurstTimes;
+struct burstTimes *allBurstTimes = NULL;
 
 /***************** basic functions *****************/
 int isEmpty()
@@ -96,21 +96,15 @@ int getArrivalTime()
 void delBurstTime(int processID)
 {
 	struct burstTimes *curr,*prev;
-	curr=allBurstTimes;
+	curr=allBurstTimes->next;
 	prev=allBurstTimes;
-	if(curr->processID==processID)
-	{
-		allBurstTimes=curr->next;
-		free(curr);
-		return;
-	}
-	curr=curr->next;
 	while(curr)
 	{
 		if(curr->processID==processID)
 		{
 			prev->next=curr->next;
 			free(curr);
+			return;
 		}
 		curr=curr->next;
 		prev=prev->next;
@@ -120,26 +114,22 @@ void delBurstTime(int processID)
 void addBurstTime(int processID,int burstTime)
 {
 	struct burstTimes *temp;
+	struct burstTimes *curr;
 	temp=(struct burstTimes *)malloc(sizeof(struct burstTimes));
 	temp->processID=processID;
 	temp->burstTime=burstTime;
 	temp->next=NULL;
-	if(allBurstTimes==NULL)
-	{
-		allBurstTimes=temp;
-		return;
-	}
-	struct burstTimes *curr;
 	curr=allBurstTimes;
-	while(curr->next)
+	while(curr->next!=NULL)
 		curr=curr->next;
 	curr->next=temp;
 }
 
 /***************** Initializing functions *****************/
-void initBurstTimesList()
+void initBurstTimes()
 {
-	allBurstTimes=NULL;
+	allBurstTimes=(struct burstTimes *)malloc(sizeof(struct burstTimes));
+	allBurstTimes->next=NULL;
 }
 
 void initResources()
@@ -163,8 +153,8 @@ void initAll()
 	timeElapsed=0;
 	processCount=1000;
 	initResources();
+	initBurstTimes();
 	initReadyQueue();
-	initBurstTimesList();
 	fp=fopen("sharedMemory.txt", "w");
 }
 
@@ -558,6 +548,7 @@ void RoundRobin()
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
 				readyQueue.Arr[i].waitTime++;
 			askUser();
+			timeElapsed++;
 		}
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
 		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime<=0)

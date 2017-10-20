@@ -192,7 +192,7 @@ void writeBurstTimes()
 {
 	struct burstTimes *curr;
 	fprintf(fp, "BurstTimes ");
-	curr=allBurstTimes;
+	curr=allBurstTimes->next;
 	while(curr!=NULL)
 	{
 		fprintf(fp,"%d ",curr->burstTime);

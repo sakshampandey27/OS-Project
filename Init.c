@@ -194,43 +194,46 @@ void logRequests(int id, int type, int resNum, int resInstances)
 	newRequest->requestType = type;
 	newRequest->resourceNumber = resNum;
 	newRequest->resourceInstances = resInstances;	
+	newRequest->downlink = newRequest->rightlink = NULL;
 	if (curr==NULL)
 	{
 		curr=(struct requestLog *)malloc(sizeof(struct requestLog));
 		curr->rightlink=NULL;
 		curr->requestType = id;
 		curr->resourceNumber = curr->resourceInstances = -1;
-		curr->downlink = NULL;		
+		curr->downlink = NULL;
 	}
-	while (curr->downlink!=NULL)
+	else
 	{
-		if (curr->requestType == id)
+		while (curr->downlink!=NULL)
 		{
-			while (curr->rightlink!=NULL)
-				curr = curr->rightlink;
-			curr->rightlink = newRequest;
+			if (curr->requestType == id)
+			{
+				while (curr->rightlink!=NULL)
+					curr = curr->rightlink;
+				curr->rightlink = newRequest;
+			}
+			else
+				curr = curr->downlink;
 		}
-		else
-			curr = curr->downlink;
 	}
 	if (curr->downlink==NULL)
 	{
 		temp=(struct requestLog *)malloc(sizeof(struct requestLog));
-		temp->rightlink=NULL;
+		temp->downlink=temp->rightlink=NULL;
 		temp->requestType = id;
 		temp->resourceNumber = temp->resourceInstances = -1;
-		temp->downlink = NULL;		
-		temp = curr->downlink;
+		curr->downlink = temp;
 	}
 }
 
 void grantRequests()
 {
-	struct requestLog *curr=root,*req=curr;
+	struct requestLog *curr=root,*req=curr,*prev=curr;
 	struct process copy;
-	int j=0;
-	while (curr->downlink!=NULL)
+	while (curr!=NULL)
 	{
+		int j=0,flagStatus=0;
 		if (curr->requestType == readyQueue.Arr[readyQueue.front].processID)
 		{
 			copy = readyQueue.Arr[readyQueue.front];
@@ -246,52 +249,52 @@ void grantRequests()
 				else if (req->requestType == requestNew)
 					copy.resourcesAllocated[req->resourceNumber] += req->resourceInstances;
 
-				curr->rightlink = req->rightlink;
-				req->rightlink=NULL;
-				free(req);
+				req = req->rightlink;
 			}
-			curr = root;
-			struct requestLog *prev = curr;
 			while (j<numResources)
 			{
 				if (copy.resourcesAllocated[j] > maxResources[j])
 				{
+					printf("\nProcess cannot be served, has been deleted.\n");
+					prev->downlink = curr->downlink;
+					curr->downlink = NULL;
 					deleteLinkedList(curr);
+					flagStatus = 1;
 					break;
 				}
 				if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] < currentResources[j]) 
 					j++;
 				else
+				{
+					printf("\nResources currently not available...process has to wait.\n");
+					flagStatus = 2;
 					break;
+				}
 			}
 			if (j==numResources)
 			{
 				for (int k=0;k<numResources;k++)
-					currentResources[k] -= copy.resourcesAllocated[k] - readyQueue.Arr[readyQueue.front].resourcesAllocated[k];		
+					currentResources[k] -= copy.resourcesAllocated[k] - readyQueue.Arr[readyQueue.front].resourcesAllocated[k];
 				readyQueue.Arr[readyQueue.front] = copy;
-				while (curr!=NULL && curr->requestType!=readyQueue.Arr[readyQueue.front].processID)
-				{
-					prev=curr;
-					curr=curr->downlink;					
-				}
-				if (curr!=NULL && curr->requestType==readyQueue.Arr[readyQueue.front].processID)
-				{
-					prev->downlink = curr->downlink;
-					curr->downlink=NULL;
-					deleteLinkedList(curr);
-				}
+				prev = curr;
+				prev->downlink = curr->downlink;
+				curr->downlink=NULL;
+				deleteLinkedList(curr);
 			}
 			else
 			{
-				printf("All requests cannot be granted at this time. \n");
-				push(pop());
+				if (flagStatus == 2)
+				{
+					push(pop());
+					flagStatus=0;
+				}
+				else if (flagStatus==1)
+					flagStatus=0;
 			}
 		}
 		else
 			curr = curr->downlink;
 	}
-	if (curr==NULL)
-		printf("No pending requests for process ID - %d",readyQueue.Arr[readyQueue.front].processID);
 }
 
 /***************** User Options *****************/
@@ -491,7 +494,7 @@ void RoundRobin()
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
 				readyQueue.Arr[i].waitTime++;
 			askUser();
-		}		
+		}
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
 		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime<=timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
 		{

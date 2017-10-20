@@ -51,7 +51,7 @@ void push(struct process p)
 {
 	if(readyQueue.rear>=readyQueue.currentSize)
 	{
-		readyQueue.Arr=realloc(readyQueue.Arr,2*readyQueue.currentSize);
+		readyQueue.Arr=realloc(readyQueue.Arr,2*readyQueue.currentSize);		
 		readyQueue.currentSize *=2;
 	}
 	readyQueue.Arr[readyQueue.rear++]=p;
@@ -97,8 +97,8 @@ void initResources()
 
 void initReadyQueue()
 {
-	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
-	readyQueue.currentSize=1;
+	readyQueue.currentSize=10;
+	readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));	
 }
 
 void initAll()
@@ -114,7 +114,7 @@ void initAll()
 void currentStatus()
 {
 	if(readyQueue.front>=readyQueue.rear)
-		printf("CPU is IDLE. \n");
+		printf("CPU is IDLE.\n");
 	else
 	{
 		printf("READY QUEUE: \n");
@@ -123,7 +123,7 @@ void currentStatus()
 			printf("Process ID - %d\t",readyQueue.Arr[i].processID);
 		}
 	}
-	printf("Current Resources Available: \n");
+	printf("\nCurrent Resources Available: \n");
 	for (int i=0;i<numResources;i++)
 		printf(" R%d - %d  ",i,currentResources[i]);
 }
@@ -301,6 +301,7 @@ void newProcess()
 	struct process *p;
 	p=(struct process *)malloc(sizeof(struct process));
 	p->arrivalTime=getArrivalTime();
+	p->waitTime=0;
 	printf("Enter burst Time : ");
 	scanf("%d",&(p->burstTime));
 	printf("Enter initial resources required : ");
@@ -382,7 +383,8 @@ void abortProcess(int procID)
 		return;
 	}
 	printf("Are you sure you want to abort P%d?(Y/N)",found.processID);
-	scanf("%c ", &ch);
+	scanf("%c", &ch);
+	scanf("%c", &ch);
 	if (ch=='Y')
 	{
 		while (curr!=NULL && curr->requestType!=found.processID)
@@ -446,7 +448,8 @@ void printProcessStatus()
 void askUser()
 {
 	int opt=0,procID;
-	//resetFile();
+	resetFile(); 
+	timeElapsed++;
 	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
 	scanf("%d",&opt);
 	switch(opt)
@@ -469,7 +472,7 @@ void askUser()
 				break;
 		default: break;
 	}
-	//writeToFile();
+	writeToFile();
 }
 
 /***************** Scheduling *****************/
@@ -477,7 +480,7 @@ void RoundRobin()
 {
 	struct process finishedProcess;
 	int startTime,count;
-	while (readyQueue.front!=readyQueue.rear)
+	while (readyQueue.front<readyQueue.rear)
 	{
 		startTime = timeElapsed;
 		count=0;
@@ -488,19 +491,19 @@ void RoundRobin()
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
 				readyQueue.Arr[i].waitTime++;
 			askUser();
-			timeElapsed++;
-		}
+		}		
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
-		if (readyQueue.Arr[readyQueue.front].burstTime==timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
+		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime==timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
 		{
+			finishedProcess = pop();
 			for (int k=0;k<numResources;k++)
 				currentResources[k] += finishedProcess.resourcesAllocated[k];
-			finishedProcess = pop();
 		}
-		else
+		else if(readyQueue.front<readyQueue.rear)
 			push(pop());
 	}
 	currentStatus();
+	//exit(1);
 }
 
 /***************** Main *****************/

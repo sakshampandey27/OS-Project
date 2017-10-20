@@ -13,6 +13,12 @@ enum types {requestNew, releaseOld};
 unsigned long long int timeElapsed;
 
 /***************** structures *****************/
+struct burstTimes
+{
+	int processID,burstTime;
+	struct burstTimes *next;
+};
+
 struct process
 {
 	int burstTime,arrivalTime,waitTime;
@@ -38,6 +44,7 @@ struct queue
 };
 
 struct queue readyQueue;
+struct burstTimes *allBurstTimes;
 
 /***************** basic functions *****************/
 int isEmpty()
@@ -85,7 +92,56 @@ int getArrivalTime()
 {
 	return timeElapsed;
 }
+/***************** Burst Times ***********************/
+void delBurstTime(int processID)
+{
+	struct burstTimes *curr,*prev;
+	curr=allBurstTimes;
+	prev=allBurstTimes;
+	if(curr->processID==processID)
+	{
+		allBurstTimes=curr->next;
+		free(curr);
+		return;
+	}
+	curr=curr->next;
+	while(curr)
+	{
+		if(curr->processID==processID)
+		{
+			prev->next=curr->next;
+			free(curr);
+		}
+		curr=curr->next;
+		prev=prev->next;
+	}
+}
+
+void addBurstTime(int processID,int burstTime)
+{
+	struct burstTimes *temp;
+	temp=(struct burstTimes *)malloc(sizeof(struct burstTimes));
+	temp->processID=processID;
+	temp->burstTime=burstTime;
+	temp->next=NULL;
+	if(allBurstTimes==NULL)
+	{
+		allBurstTimes=temp;
+		return;
+	}
+	struct burstTimes *curr;
+	curr=allBurstTimes;
+	while(curr->next)
+		curr=curr->next;
+	curr->next=temp;
+}
+
 /***************** Initializing functions *****************/
+void initBurstTimesList()
+{
+	allBurstTimes=NULL;
+}
+
 void initResources()
 {
 	for(int i=0;i<numResources;i++)
@@ -108,6 +164,7 @@ void initAll()
 	processCount=1000;
 	initResources();
 	initReadyQueue();
+	initBurstTimesList();
 	fp=fopen("sharedMemory.txt", "w");
 }
 
@@ -143,11 +200,13 @@ void writeReadyQueue()
 
 void writeBurstTimes()
 {
-	int i;
+	struct burstTimes *curr;
 	fprintf(fp, "BurstTimes ");
-	for(i=readyQueue.front;i<readyQueue.rear;i++)
+	curr=allBurstTimes;
+	while(curr!=NULL)
 	{
-		fprintf(fp,"%d ",readyQueue.Arr[i].burstTime);
+		fprintf(fp,"%d ",curr->burstTime);
+		curr=curr->next;
 	}
 	fprintf(fp,"\n");
 }
@@ -199,10 +258,11 @@ void logRequests(int id, int type, int resNum, int resInstances)
 	if (curr==NULL)
 	{
 		curr=(struct requestLog *)malloc(sizeof(struct requestLog));
-		curr->rightlink=NULL;
 		curr->requestType = id;
 		curr->resourceNumber = curr->resourceInstances = -1;
 		curr->downlink = NULL;
+		curr->rightlink = newRequest;
+		return;
 	}
 	else
 	{
@@ -221,10 +281,11 @@ void logRequests(int id, int type, int resNum, int resInstances)
 	if (curr->downlink==NULL)
 	{
 		temp=(struct requestLog *)malloc(sizeof(struct requestLog));
-		temp->downlink=temp->rightlink=NULL;
+		temp->downlink=NULL;
 		temp->requestType = id;
 		temp->resourceNumber = temp->resourceInstances = -1;
 		curr->downlink = temp;
+		temp->rightlink=newRequest;
 	}
 }
 
@@ -324,6 +385,7 @@ void newProcess()
 	push(*p);
 	for (int i=0;i<numResources;i++)
 		currentResources[i] -= p->resourcesAllocated[i];
+	addBurstTime(p->processID,p->burstTime);
 	currentStatus();
 }
 
@@ -423,6 +485,7 @@ void abortProcess(int procID)
 		}
 		readyQueue.rear--;
 		printf("Process aborted successfully!\n");
+		delBurstTime(procID); //Delete
 	}
 	else
 		printf("Process not aborted!\n");
@@ -452,8 +515,7 @@ void printProcessStatus()
 void askUser()
 {
 	int opt=0,procID;
-	resetFile(); 
-	timeElapsed++;
+	resetFile();
 	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
 	scanf("%d",&opt);
 	switch(opt)
@@ -488,20 +550,22 @@ void RoundRobin()
 	{
 		startTime = timeElapsed;
 		count=0;
-		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
+		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>0)
 		{
 			//grantRequests();
+			readyQueue.Arr[readyQueue.front].burstTime--;
 			count++;
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
 				readyQueue.Arr[i].waitTime++;
 			askUser();
 		}
 		printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
-		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime<=timeElapsed-readyQueue.Arr[readyQueue.front].waitTime)
+		if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime<=0)
 		{
 			finishedProcess = pop();
 			for (int k=0;k<numResources;k++)
 				currentResources[k] += finishedProcess.resourcesAllocated[k];
+			delBurstTime(finishedProcess.processID); //Delete 
 		}
 		else //if(readyQueue.front<readyQueue.rear)
 			push(pop());

@@ -253,6 +253,7 @@ void logRequests(int id, int type, int resNum, int resInstances)
 		curr->resourceNumber = curr->resourceInstances = -1;
 		curr->downlink = NULL;
 		curr->rightlink = newRequest;
+		root=curr;
 		return;
 	}
 	else
@@ -280,7 +281,26 @@ void logRequests(int id, int type, int resNum, int resInstances)
 	}
 }
 
-void grantRequests()
+void printLog()
+{
+	struct requestLog *curr=root,*temp;
+	printf("\n******************************************\n");
+	while(curr!=NULL)
+	{
+		printf("%d -> ",curr->requestType);
+		temp=curr->rightlink;
+		while(temp!=NULL)
+		{
+			printf("%d %d %d -> ",temp->requestType,temp->resourceNumber,temp->resourceInstances);
+			temp=temp->rightlink;
+		}
+		printf("\n");
+		curr=curr->downlink;
+	}
+	printf("\n******************************************\n");
+}
+
+int grantRequests()
 {
 	struct requestLog *curr=root,*req=curr,*prev=curr;
 	struct process copy;
@@ -341,6 +361,7 @@ void grantRequests()
 				prev->downlink = curr->downlink;
 				curr->downlink=NULL;
 				deleteLinkedList(curr);
+				currentStatus();
 			}
 			else
 			{
@@ -351,14 +372,16 @@ void grantRequests()
 				}
 				else if (flagStatus==1)
 					flagStatus=0;
+				return 0;
 			}
 		}
 		else
 		{
 			prev = curr;
 			curr = curr->downlink;
-		}			
+		}
 	}
+	return 1;
 }
 /***************** User Options *****************/
 void newProcess()
@@ -426,7 +449,8 @@ void releaseResources(int procID)
 	printf("Process ID is : %d \n",found.processID);
 	printf("Enter resource number to be released: ");
 	scanf("%d",&resourceNumber);
-	while (numberOfInstances < found.resourcesAllocated[resourceNumber])
+	numberOfInstances=11; //1 greater than max
+	while (numberOfInstances > found.resourcesAllocated[resourceNumber])
 	{
 		printf("Enter number of instances to be released: ");
 		scanf("%d",&numberOfInstances);
@@ -516,7 +540,7 @@ void printProcessStatus()
 void askUser()
 {
 	int opt=0,procID;
-	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
+	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Print Log\n7.Continue Execution\n");
 	scanf("%d",&opt);
 	switch(opt)
 	{
@@ -536,10 +560,12 @@ void askUser()
 				break;
 		case 5: printProcessStatus();
 				break;
+		case 6:	printLog();
+				break;
 		default: break;
 	}
-	//resetFile();
-	//writeToFile();
+	resetFile();
+	writeToFile();
 }
 
 /***************** Scheduling *****************/
@@ -551,9 +577,9 @@ void RoundRobin()
 	{
 		startTime = timeElapsed;
 		count=0;
+		while(!grantRequests());
 		while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>0)
 		{
-			//grantRequests();
 			readyQueue.Arr[readyQueue.front].burstTime--;
 			count++;
 			for (int i=readyQueue.front+1;i<readyQueue.rear;i++)

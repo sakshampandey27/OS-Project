@@ -1,0 +1,5 @@
+1
+ReadyQueue 1000 
+BurstTimes 23 
+ResourcesAllocated
+PID-1000 2 2 2 2 2 

@@ -226,11 +226,12 @@ void writeToFile()
 	writeReadyQueue();
 	writeBurstTimes();
 	writeResourcesAllocated();
+	fclose(fp);
 }
 
 void resetFile()
 {
-	fclose(fopen("sharedMemory.txt", "w"));
+	fp=fopen("sharedMemory.txt", "w");
 	fflush(fp);
 }
 
@@ -505,7 +506,6 @@ void printProcessStatus()
 void askUser()
 {
 	int opt=0,procID;
-	resetFile();
 	printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Continue Execution\n");
 	scanf("%d",&opt);
 	switch(opt)
@@ -528,6 +528,7 @@ void askUser()
 				break;
 		default: break;
 	}
+	resetFile();
 	writeToFile();
 }
 

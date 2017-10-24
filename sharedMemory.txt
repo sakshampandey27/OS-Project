@@ -1,4 +1,0 @@
-0
-ReadyQueue 
-BurstTimes 
-ResourcesAllocated

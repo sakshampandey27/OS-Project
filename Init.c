@@ -309,9 +309,18 @@ void grantRequests()
 				if (copy.resourcesAllocated[j] > maxResources[j])
 				{
 					printf("\nProcess cannot be served, has been deleted.\n");
-					prev->downlink = curr->downlink;
-					curr->downlink = NULL;
-					deleteLinkedList(curr);
+					if (curr==root)
+					{
+						root = curr->downlink;					
+						deleteLinkedList(curr);
+						curr = root;
+					}
+					else
+					{
+						prev->downlink = curr->downlink;
+						curr->downlink = NULL;
+						deleteLinkedList(curr);
+					}
 					flagStatus = 1;
 					break;
 				}
@@ -329,7 +338,6 @@ void grantRequests()
 				for (int k=0;k<numResources;k++)
 					currentResources[k] -= copy.resourcesAllocated[k] - readyQueue.Arr[readyQueue.front].resourcesAllocated[k];
 				readyQueue.Arr[readyQueue.front] = copy;
-				prev = curr;
 				prev->downlink = curr->downlink;
 				curr->downlink=NULL;
 				deleteLinkedList(curr);
@@ -346,10 +354,12 @@ void grantRequests()
 			}
 		}
 		else
+		{
+			prev = curr;
 			curr = curr->downlink;
+		}			
 	}
 }
-
 /***************** User Options *****************/
 void newProcess()
 {
@@ -528,8 +538,8 @@ void askUser()
 				break;
 		default: break;
 	}
-	resetFile();
-	writeToFile();
+	//resetFile();
+	//writeToFile();
 }
 
 /***************** Scheduling *****************/

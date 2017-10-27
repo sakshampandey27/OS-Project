@@ -390,8 +390,7 @@ int grantRequests()
                 }
                 curr->rightlink = NULL;
                 prev->downlink = curr->downlink;
-                curr->downlink=NULL;
-                free(curr);
+                curr->downlink=NULL;                
                 if(prev==NULL)
                     root=NULL;
                 else
@@ -433,9 +432,9 @@ void newProcess()
     {
         printf("Enter request for resource %d",i);
         scanf("%d",&p->resourcesAllocated[i]);
-        if (p->resourcesAllocated[i] > maxResources[i])
+        if (p->resourcesAllocated[i] > currentResources[i])
         {
-            printf("Please enter a number between 0 and %d\n",maxResources[i]);
+            printf("Please enter a number between 0 and %d\n",currentResources[i]);
             i--;
         }
     }
@@ -542,12 +541,6 @@ void abortProcess(int procID)
                 break;
             }
         }
-        /*i++;
-        while(i<readyQueue.rear-1)
-        {
-            readyQueue.Arr[i]=readyQueue.Arr[i+1];
-            i++;
-        }*/
         readyQueue.rear--;
         printf("Process aborted successfully!\n");
         delBurstTime(procID); //Delete
@@ -580,7 +573,7 @@ void printProcessStatus()
 void askUser()
 {
     int opt=0,procID;
-    printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Print Log\n7.Continue Execution\n");
+    printf("\n1.Enter a new process.\n2.Request a new resource.\n3.Release a resource.\n4.Abort a process\n5.Show process status\n6.Print Log\n7.Continue Execution\n8.Exit");
     scanf("%d",&opt);
     switch(opt)
     {
@@ -602,10 +595,11 @@ void askUser()
             break;
         case 6:	printLog();
             break;
+        case 8: exit(1);
         default: break;
     }
-    //resetFile();
-    //writeToFile();
+    resetFile();
+    writeToFile();
 }
 
 /***************** Scheduling *****************/
@@ -627,13 +621,15 @@ void RoundRobin()
             askUser();
             timeElapsed++;
         }
-        printf("Process %d runs from t = %d ms to t = %llu ms\n", readyQueue.Arr[readyQueue.front].processID, startTime, timeElapsed);
+        printf("Remaining Burst Times: \n");
+		for (int i=readyQueue.front; i<readyQueue.rear;i++)
+			printf("Process ID - %d \t Remaining time - %d\n",readyQueue.Arr[i].processID,readyQueue.Arr[i].burstTime);
         if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime==0)
         {
             finishedProcess = pop();
             for (int k=0;k<numResources;k++)
                 currentResources[k] += finishedProcess.resourcesAllocated[k];
-            delBurstTime(finishedProcess.processID); //Delete 
+            //delBurstTime(finishedProcess.processID); //Delete
         }
         else //if(readyQueue.front<readyQueue.rear)
             push(pop());

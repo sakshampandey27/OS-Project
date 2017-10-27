@@ -604,8 +604,8 @@ void askUser()
         case 8: exit(1);
         default: break;
     }
-    //resetFile();
-    //writeToFile();
+    resetFile();
+    writeToFile();
 }
 
 /***************** Scheduling *****************/
@@ -620,6 +620,8 @@ void RoundRobin()
         while(!grantRequests());
         while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>0)
         {
+            if(grantRequests()==0)
+                break;
             readyQueue.Arr[readyQueue.front].burstTime--;
             count++;
             for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
@@ -640,7 +642,7 @@ void RoundRobin()
         else 
             push(pop());
     }
-    currentStatus();    
+    currentStatus();
 }
 
 /***************** Main *****************/

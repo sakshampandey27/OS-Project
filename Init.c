@@ -69,7 +69,6 @@ struct process pop()
     return readyQueue.Arr[readyQueue.front++];
 }
 
-// Deleting entire process in case of abort //
 void deleteLinkedList(struct requestLog *head)
 {
     struct requestLog *current=head,*next;
@@ -100,6 +99,7 @@ int getArrivalTime()
 {
     return timeElapsed;
 }
+
 /***************** Burst Times ***********************/
 void delBurstTime(int processID)
 {
@@ -349,6 +349,9 @@ int grantRequests()
                 if (copy.resourcesAllocated[j] > maxResources[j])
                 {
                     printf("\nProcess cannot be served, has been deleted.\n");
+                    for (int j=0;j<numResources;j++)
+                    	currentResources[j] += readyQueue.Arr[readyQueue.front].resourcesAllocated[j];
+					readyQueue.front++;
                     if (curr==root)
                     {
                         root = curr->downlink;
@@ -418,6 +421,7 @@ int grantRequests()
     }
     return 1;
 }
+
 /***************** User Options *****************/
 void newProcess()
 {
@@ -503,7 +507,7 @@ void releaseResources(int procID)
 
 void abortProcess(int procID)
 {
-    int k=0,flag=0,i;
+    int k=0,flag=0;
     struct process found;
     struct requestLog *curr = root, *prev = curr;
     char ch;
@@ -535,7 +539,7 @@ void abortProcess(int procID)
         }
         else
             printf("This process has no pending requests...\n");
-        for(i=readyQueue.front;i<readyQueue.rear;i++)
+        for(int i=readyQueue.front;i<readyQueue.rear;i++)
         {
             if (readyQueue.Arr[i].processID == found.processID)
             {
@@ -612,10 +616,9 @@ void askUser()
 void RoundRobin()
 {
     struct process finishedProcess;
-    int startTime,count;
+    int count;
     while (readyQueue.front<readyQueue.rear)
-    {
-        startTime = timeElapsed;
+    {        
         count=0;
         while(!grantRequests());
         while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>0)
@@ -637,7 +640,7 @@ void RoundRobin()
             finishedProcess = pop();
             for (int k=0;k<numResources;k++)
                 currentResources[k] += finishedProcess.resourcesAllocated[k];
-            //delBurstTime(finishedProcess.processID);
+            delBurstTime(finishedProcess.processID);
         }
         else 
             push(pop());

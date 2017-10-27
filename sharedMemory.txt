@@ -1,4 +1,0 @@
-0
-ReadyQueue: 
-BurstTimes: 15 10 
-ResourcesAllocated: 

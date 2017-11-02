@@ -3,7 +3,7 @@
 #include<ctype.h>
 #define numResources 5
 #define quantum 3
-
+ 
 /***************** global declarations *****************/
 FILE *fp;
 int maxResources[numResources];
@@ -40,7 +40,7 @@ struct requestLog *root = NULL;
 struct queue
 {
     int front,rear,currentSize;
-    struct process *Arr;
+    struct process Arr[3000];
 };
 
 struct queue readyQueue;
@@ -58,8 +58,8 @@ void push(struct process p)
 {
     if(readyQueue.rear>=readyQueue.currentSize)
     {
-        readyQueue.Arr=(struct process *)realloc(readyQueue.Arr,2*readyQueue.currentSize);
-        readyQueue.currentSize *=2;
+        printf("Deadlock! Deadlock! Deadlock!\n");
+        exit(1);
     }
     readyQueue.Arr[readyQueue.rear++]=p;
 }
@@ -155,8 +155,8 @@ void initResources()
 void initReadyQueue()
 {
     readyQueue.front=readyQueue.rear=0;
-    readyQueue.currentSize=1;
-    readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
+    readyQueue.currentSize=3000;
+    //readyQueue.Arr=(struct process *)malloc((readyQueue.currentSize)*sizeof(struct process));
 }
 
 void initAll()
@@ -167,6 +167,7 @@ void initAll()
     initBurstTimes();
     initReadyQueue();
     fp=fopen("sharedMemory.txt", "w");
+    fprintf(fp,"0");
 }
 
 /***************** Ready Queue Status *****************/
@@ -213,6 +214,17 @@ void writeBurstTimes()
     fprintf(fp,"\n");
 }
 
+void writeWaitTime()
+{
+    int i;
+    fprintf(fp, "Wait Times: ");
+    for(i=readyQueue.front;i<readyQueue.rear;i++)
+    {
+        fprintf(fp,"%d ",readyQueue.Arr[i].waitTime);
+    }
+    fprintf(fp,"\n");
+}
+
 void writeResourcesAllocated()
 {
     fprintf(fp, "ResourcesAllocated: \n");
@@ -237,7 +249,9 @@ void writeToFile()
     writeNumProcesses();
     writeReadyQueue();
     writeBurstTimes();
+    writeWaitTime();
     writeResourcesAllocated();
+    fflush(fp);
     fclose(fp);
 }
 
@@ -273,6 +287,11 @@ void logRequests(int id, int type, int resNum, int resInstances)
         {
             if (curr->requestType == id)
             {
+                if(curr->rightlink==NULL)
+                {
+                    curr->rightlink=newRequest;
+                    break;
+                }
                 temp = curr->rightlink;
                 while (temp->rightlink!=NULL)
                     temp = temp->rightlink;
@@ -328,7 +347,7 @@ int grantRequests()
         {
             copy = readyQueue.Arr[readyQueue.front];
             req = curr->rightlink;
-            prevreq=curr;
+            prevreq=req;
             while (req!=NULL)
             {
                 if (req->requestType == releaseOld)
@@ -336,12 +355,13 @@ int grantRequests()
                     copy.resourcesAllocated[req->resourceNumber] -= req->resourceInstances;
                     readyQueue.Arr[readyQueue.front].resourcesAllocated[req->resourceNumber] -= req->resourceInstances;
                     currentResources[req->resourceNumber] += req->resourceInstances;
+                    prevreq->rightlink=req->rightlink;                    
                 }
                 else if (req->requestType == requestNew)
                     copy.resourcesAllocated[req->resourceNumber] += req->resourceInstances;
                 if(req==NULL)
                     break;
-                prevreq=req;
+                prevreq=prevreq->rightlink;
                 req = req->rightlink;
             }
             while (j<numResources)
@@ -350,8 +370,8 @@ int grantRequests()
                 {
                     printf("\nProcess cannot be served, has been deleted.\n");
                     for (int j=0;j<numResources;j++)
-                    	currentResources[j] += readyQueue.Arr[readyQueue.front].resourcesAllocated[j];
-					readyQueue.front++;
+                        currentResources[j] += readyQueue.Arr[readyQueue.front].resourcesAllocated[j];
+                    readyQueue.front++;
                     if (curr==root)
                     {
                         root = curr->downlink;
@@ -370,7 +390,7 @@ int grantRequests()
                     flagStatus = 1;
                     break;
                 }
-                if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] < currentResources[j])
+                if (copy.resourcesAllocated[j] - readyQueue.Arr[readyQueue.front].resourcesAllocated[j] <= currentResources[j])
                     j++;
                 else
                 {
@@ -387,10 +407,10 @@ int grantRequests()
                 req = curr->rightlink;
                 while (req!=NULL)
                 {
-                	curr->rightlink = req->rightlink;
-                	req->rightlink = NULL;
-                	free(req);
-                	req = curr->rightlink;
+                    curr->rightlink = req->rightlink;
+                    req->rightlink = NULL;
+                    free(req);
+                    req = curr->rightlink;
                 }
                 curr->rightlink = NULL;
                 prev->downlink = curr->downlink;
@@ -398,7 +418,7 @@ int grantRequests()
                 if(prev==NULL)
                     root=NULL;
                 else
-                	curr=prev->downlink;                
+                    curr=prev->downlink;                
             }
             else
             {
@@ -465,8 +485,8 @@ void requestResources(int procID)
     scanf("%d",&resourceNumber);
     while (resourceNumber<0 || resourceNumber>=numResources)
     {
-    	printf("Enter resource number between 0 and %d: ",numResources-1);
-    	scanf("%d",&resourceNumber);
+        printf("Enter resource number between 0 and %d: ",numResources-1);
+        scanf("%d",&resourceNumber);
     }
     printf("Enter number of instances for request: ");
     scanf("%d",&numberOfInstances);
@@ -491,8 +511,8 @@ void releaseResources(int procID)
     scanf("%d",&resourceNumber);
     while (resourceNumber<0 || resourceNumber>=numResources)
     {
-    	printf("Enter resource number between 0 and %d: ",numResources-1);
-    	scanf("%d",&resourceNumber);
+        printf("Enter resource number between 0 and %d: ",numResources-1);
+        scanf("%d",&resourceNumber);
     }
     while (numberOfInstances > found.resourcesAllocated[resourceNumber])
     {
@@ -535,11 +555,12 @@ void abortProcess(int procID)
             if(prev==NULL)
                 root=NULL;
             else
-            	curr = prev->downlink;
+                curr = prev->downlink;
         }
         else
             printf("This process has no pending requests...\n");
-        for(int i=readyQueue.front;i<readyQueue.rear;i++)
+        int i;
+        for(i=readyQueue.front;i<readyQueue.rear-1;i++)
         {
             if (readyQueue.Arr[i].processID == found.processID)
             {
@@ -551,9 +572,14 @@ void abortProcess(int procID)
                 break;
             }
         }
+        while(i<readyQueue.rear-1)
+        {
+            readyQueue.Arr[i]=readyQueue.Arr[i+1];
+            i++;
+        }
         readyQueue.rear--;
         printf("Process aborted successfully!\n");
-        delBurstTime(procID); //Delete
+        delBurstTime(procID); 
     }
     else
         printf("Process not aborted!\n");
@@ -587,7 +613,7 @@ void askUser()
     scanf("%d",&opt);
     switch(opt)
     {
-        case 1:	newProcess();
+        case 1: newProcess();
             break;
         case 2: printf("Enter process ID of the process: ");
             scanf("%d",&procID);
@@ -603,7 +629,7 @@ void askUser()
             break;
         case 5: printProcessStatus();
             break;
-        case 6:	printLog();
+        case 6: printLog();
             break;
         case 8: exit(1);
         default: break;
@@ -624,7 +650,9 @@ void RoundRobin()
         while(count<quantum && readyQueue.Arr[readyQueue.front].burstTime>0)
         {
             if(grantRequests()==0)
+            {
                 break;
+            }
             readyQueue.Arr[readyQueue.front].burstTime--;
             count++;
             for (int i=readyQueue.front+1;i<readyQueue.rear;i++)
@@ -633,8 +661,8 @@ void RoundRobin()
             timeElapsed++;
         }
         printf("Running: Process %d\nRemaining Burst Times: \n",readyQueue.Arr[readyQueue.front].processID);
-		for (int i=readyQueue.front; i<readyQueue.rear;i++)
-			printf("Process ID - %d\tRemaining time - %d\n",readyQueue.Arr[i].processID,readyQueue.Arr[i].burstTime);
+        for (int i=readyQueue.front; i<readyQueue.rear;i++)
+            printf("Process ID - %d\tRemaining time - %d\n",readyQueue.Arr[i].processID,readyQueue.Arr[i].burstTime);
         if (readyQueue.front<readyQueue.rear && readyQueue.Arr[readyQueue.front].burstTime==0)
         {
             finishedProcess = pop();
